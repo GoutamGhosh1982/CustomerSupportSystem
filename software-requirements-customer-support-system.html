@@ -1,0 +1,703 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Customer Support System - Requirements</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #1f2328;
+            background-color: #ffffff;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            color: #1f2328;
+        }
+        .subtitle {
+            font-size: 13px;
+            color: #57606a;
+            margin-bottom: 32px;
+        }
+        h2 {
+            font-size: 18px;
+            margin-top: 28px;
+            margin-bottom: 12px;
+            color: #1f2328;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 8px;
+        }
+        h3 {
+            font-size: 14px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            color: #1f2328;
+            font-weight: 600;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            background-color: #f7f8fa;
+        }
+        table th {
+            background-color: #f7f8fa;
+            border: 1px solid #e5e7eb;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            color: #1f2328;
+            font-size: 13px;
+        }
+        table td {
+            border: 1px solid #e5e7eb;
+            padding: 10px;
+            font-size: 13px;
+        }
+        table tr:nth-child(even) {
+            background-color: #ffffff;
+        }
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 16px;
+        }
+        li {
+            margin-bottom: 6px;
+        }
+        .note {
+            background-color: #f7f8fa;
+            border-left: 4px solid #3b82d4;
+            padding: 12px;
+            margin: 16px 0;
+            font-size: 13px;
+        }
+        .section-group {
+            margin-bottom: 24px;
+        }
+        code {
+            background-color: #f7f8fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            color: #d73a49;
+        }
+        .requirement-item {
+            margin-bottom: 12px;
+            padding: 8px;
+            background-color: #f7f8fa;
+            border-left: 3px solid #7c5cd8;
+        }
+        .requirement-item strong {
+            color: #1f2328;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 12px;
+            color: #57606a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Customer Support Ticketing System</h1>
+        <p class="subtitle">Software &amp; Infrastructure Requirements Documentation</p>
+
+        <h2>Overview</h2>
+        <p>This is a full-stack microservices application with a React frontend and .NET 10.0 backend services. The system can run via Docker Compose or local development mode.</p>
+
+        <h2>Deployment Modes</h2>
+        <p>Choose one of the following deployment options:</p>
+        <ul>
+            <li><strong>Docker Compose (Recommended)</strong> - Single command deployment</li>
+            <li><strong>Local Development</strong> - Manual setup for each service</li>
+        </ul>
+
+        <h2>1. System Requirements (All Modes)</h2>
+        <div class="section-group">
+            <h3>Hardware</h3>
+            <div class="requirement-item">
+                <strong>CPU:</strong> 2+ cores (4+ cores recommended)
+            </div>
+            <div class="requirement-item">
+                <strong>RAM:</strong> 4GB minimum (8GB recommended)
+            </div>
+            <div class="requirement-item">
+                <strong>Disk:</strong> 10GB free space (for Docker images &amp; databases)
+            </div>
+            <div class="requirement-item">
+                <strong>Network:</strong> Stable internet connection for Docker image downloads
+            </div>
+
+            <h3>Operating System</h3>
+            <ul>
+                <li>Windows 10+ (with Docker Desktop)</li>
+                <li>macOS 10.14+ (with Docker Desktop)</li>
+                <li>Linux (Ubuntu 18.04+, CentOS, Debian, etc.)</li>
+            </ul>
+        </div>
+
+        <h2>2. Docker Compose Mode Requirements</h2>
+        <div class="section-group">
+            <h3>Required Software</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Software</th>
+                        <th>Version</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Docker Engine</td>
+                        <td>20.10+</td>
+                        <td>Container runtime</td>
+                    </tr>
+                    <tr>
+                        <td>Docker Compose</td>
+                        <td>2.0+</td>
+                        <td>Multi-container orchestration</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Installation</h3>
+            <ul>
+                <li><strong>Windows/Mac:</strong> Download Docker Desktop from <code>docker.com</code> (includes Docker &amp; Compose)</li>
+                <li><strong>Linux:</strong> Install Docker and Docker Compose separately</li>
+            </ul>
+
+            <div class="note">
+                <strong>Verify Installation:</strong> Run <code>docker --version</code> and <code>docker-compose --version</code>
+            </div>
+
+            <h3>Containers Deployed</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Image</th>
+                        <th>Port</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>SQL Server</td>
+                        <td>mcr.microsoft.com/mssql/server:2022</td>
+                        <td>1433</td>
+                    </tr>
+                    <tr>
+                        <td>RabbitMQ</td>
+                        <td>rabbitmq:3-management</td>
+                        <td>5672, 15672</td>
+                    </tr>
+                    <tr>
+                        <td>User Service</td>
+                        <td>Custom (.NET 10)</td>
+                        <td>5004</td>
+                    </tr>
+                    <tr>
+                        <td>Ticket Service</td>
+                        <td>Custom (.NET 10)</td>
+                        <td>5001</td>
+                    </tr>
+                    <tr>
+                        <td>Response Service</td>
+                        <td>Custom (.NET 10)</td>
+                        <td>5002</td>
+                    </tr>
+                    <tr>
+                        <td>Notification Service</td>
+                        <td>Custom (.NET 10)</td>
+                        <td>5003</td>
+                    </tr>
+                    <tr>
+                        <td>API Gateway</td>
+                        <td>Custom (.NET 10)</td>
+                        <td>5000</td>
+                    </tr>
+                    <tr>
+                        <td>Frontend</td>
+                        <td>Custom (Node.js/Nginx)</td>
+                        <td>3000</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Quick Start</h3>
+            <div class="note">
+                Run from project root: <code>docker-compose up --build</code>
+            </div>
+        </div>
+
+        <h2>3. Local Development Mode Requirements</h2>
+        <div class="section-group">
+            <h3>Core Runtime Requirements</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Software</th>
+                        <th>Minimum Version</th>
+                        <th>Recommended</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>.NET SDK</td>
+                        <td>8.0</td>
+                        <td>10.0 LTS</td>
+                    </tr>
+                    <tr>
+                        <td>Node.js</td>
+                        <td>18.0</td>
+                        <td>20+ LTS</td>
+                    </tr>
+                    <tr>
+                        <td>npm</td>
+                        <td>9.0</td>
+                        <td>10+</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Backend (.NET) NuGet Packages</h3>
+            <p>All .NET services use these core packages:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Package</th>
+                        <th>Version</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Microsoft.EntityFrameworkCore</td>
+                        <td>9.0.0</td>
+                        <td>ORM for database operations</td>
+                    </tr>
+                    <tr>
+                        <td>Microsoft.EntityFrameworkCore.SqlServer</td>
+                        <td>9.0.0</td>
+                        <td>EF Core SQL Server provider</td>
+                    </tr>
+                    <tr>
+                        <td>Microsoft.EntityFrameworkCore.Tools</td>
+                        <td>9.0.0</td>
+                        <td>EF Core CLI tools for migrations</td>
+                    </tr>
+                    <tr>
+                        <td>Microsoft.AspNetCore.Authentication.JwtBearer</td>
+                        <td>9.0.0</td>
+                        <td>JWT authentication middleware</td>
+                    </tr>
+                    <tr>
+                        <td>Swashbuckle.AspNetCore</td>
+                        <td>7.3.1</td>
+                        <td>Swagger/OpenAPI documentation</td>
+                    </tr>
+                    <tr>
+                        <td>BCrypt.Net-Next</td>
+                        <td>4.0.3</td>
+                        <td>Password hashing library</td>
+                    </tr>
+                    <tr>
+                        <td>RabbitMQ.Client</td>
+                        <td>(via SharedKernel)</td>
+                        <td>Message broker client</td>
+                    </tr>
+                    <tr>
+                        <td>SignalR</td>
+                        <td>(Notification Service)</td>
+                        <td>Real-time notifications</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Frontend (Node.js) Dependencies</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Package</th>
+                        <th>Version</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>React</td>
+                        <td>18.2.0</td>
+                        <td>UI framework</td>
+                    </tr>
+                    <tr>
+                        <td>React Router</td>
+                        <td>6.21.0</td>
+                        <td>Client-side routing</td>
+                    </tr>
+                    <tr>
+                        <td>Vite</td>
+                        <td>5.0.0</td>
+                        <td>Build tool &amp; dev server</td>
+                    </tr>
+                    <tr>
+                        <td>TypeScript</td>
+                        <td>5.2.0</td>
+                        <td>Type-safe JavaScript</td>
+                    </tr>
+                    <tr>
+                        <td>Tailwind CSS</td>
+                        <td>3.4.0</td>
+                        <td>Utility-first CSS</td>
+                    </tr>
+                    <tr>
+                        <td>Zustand</td>
+                        <td>4.4.0</td>
+                        <td>State management</td>
+                    </tr>
+                    <tr>
+                        <td>Axios</td>
+                        <td>1.6.0</td>
+                        <td>HTTP client</td>
+                    </tr>
+                    <tr>
+                        <td>React Query (TanStack)</td>
+                        <td>5.0.0</td>
+                        <td>Server state management</td>
+                    </tr>
+                    <tr>
+                        <td>SignalR</td>
+                        <td>8.0.0</td>
+                        <td>Real-time WebSocket client</td>
+                    </tr>
+                    <tr>
+                        <td>React Hook Form</td>
+                        <td>7.49.0</td>
+                        <td>Form state management</td>
+                    </tr>
+                    <tr>
+                        <td>Zod</td>
+                        <td>3.22.0</td>
+                        <td>Schema validation</td>
+                    </tr>
+                    <tr>
+                        <td>Recharts</td>
+                        <td>2.10.0</td>
+                        <td>Data visualization</td>
+                    </tr>
+                    <tr>
+                        <td>React Hot Toast</td>
+                        <td>2.4.1</td>
+                        <td>Toast notifications</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Infrastructure Services (Docker)</h3>
+            <p>Start these services in Docker before running local backend services:</p>
+            <div class="note">
+                <code>docker-compose up sqlserver rabbitmq -d</code>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Version</th>
+                        <th>Purpose</th>
+                        <th>Port</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>SQL Server</td>
+                        <td>2022-latest</td>
+                        <td>Primary database</td>
+                        <td>1433</td>
+                    </tr>
+                    <tr>
+                        <td>RabbitMQ</td>
+                        <td>3-management</td>
+                        <td>Message broker</td>
+                        <td>5672, 15672</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Installation Steps</h3>
+            <ol>
+                <li><strong>.NET SDK:</strong> Download from <code>dotnet.microsoft.com</code></li>
+                <li><strong>Node.js:</strong> Download LTS from <code>nodejs.org</code></li>
+                <li><strong>Verify:</strong> Run <code>dotnet --version</code> and <code>node --version</code></li>
+            </ol>
+
+            <h3>Frontend Setup</h3>
+            <div class="note">
+                <code>cd frontend</code><br />
+                <code>npm install</code><br />
+                <code>npm run dev</code>
+            </div>
+
+            <h3>Backend Services (5 terminals required)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Directory</th>
+                        <th>Port</th>
+                        <th>Command</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>User Service</td>
+                        <td>backend/UserService</td>
+                        <td>5004</td>
+                        <td><code>dotnet run</code></td>
+                    </tr>
+                    <tr>
+                        <td>Ticket Service</td>
+                        <td>backend/TicketService</td>
+                        <td>5001</td>
+                        <td><code>dotnet run</code></td>
+                    </tr>
+                    <tr>
+                        <td>Response Service</td>
+                        <td>backend/ResponseService</td>
+                        <td>5002</td>
+                        <td><code>dotnet run</code></td>
+                    </tr>
+                    <tr>
+                        <td>Notification Service</td>
+                        <td>backend/NotificationService</td>
+                        <td>5003</td>
+                        <td><code>dotnet run</code></td>
+                    </tr>
+                    <tr>
+                        <td>API Gateway</td>
+                        <td>backend/Gateway</td>
+                        <td>5000</td>
+                        <td><code>dotnet run</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>4. External Services &amp; Credentials</h2>
+        <div class="section-group">
+            <h3>SMTP Email Service (Optional - for production)</h3>
+            <p>Notification Service requires SMTP credentials for email sending:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Provider</th>
+                        <th>Configuration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Recommended</td>
+                        <td>Mailtrap, SendGrid, AWS SES</td>
+                    </tr>
+                    <tr>
+                        <td>Environment Variables</td>
+                        <td>Smtp__Host, Smtp__Port, Smtp__Username, Smtp__Password, Smtp__From</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="note">
+                For development/testing, defaults are configured in docker-compose.yml (set to your credentials)
+            </div>
+
+            <h3>Database Credentials</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Database</th>
+                        <th>Default User</th>
+                        <th>Default Password</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>SQL Server</td>
+                        <td>UserDB, TicketDB, ResponseDB, NotificationDB</td>
+                        <td>sa</td>
+                        <td>YourPassword@123</td>
+                    </tr>
+                    <tr>
+                        <td>RabbitMQ</td>
+                        <td>N/A (message queue)</td>
+                        <td>guest</td>
+                        <td>guest</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Application Default Accounts</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Role</th>
+                        <th>Email</th>
+                        <th>Password</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Admin</td>
+                        <td>admin@support.com</td>
+                        <td>Admin@123</td>
+                    </tr>
+                    <tr>
+                        <td>Support Agent</td>
+                        <td>agent@support.com</td>
+                        <td>Agent@123</td>
+                    </tr>
+                    <tr>
+                        <td>Customer</td>
+                        <td>customer@example.com</td>
+                        <td>Customer@123</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>5. Network &amp; Port Requirements</h2>
+        <div class="section-group">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Port</th>
+                        <th>Service</th>
+                        <th>Protocol</th>
+                        <th>Access</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>3000</td>
+                        <td>React Frontend</td>
+                        <td>HTTP</td>
+                        <td>Browser access</td>
+                    </tr>
+                    <tr>
+                        <td>5000</td>
+                        <td>API Gateway</td>
+                        <td>HTTP/REST</td>
+                        <td>Internal/Frontend</td>
+                    </tr>
+                    <tr>
+                        <td>5001</td>
+                        <td>Ticket Service</td>
+                        <td>HTTP/REST + Swagger</td>
+                        <td>Gateway/Testing</td>
+                    </tr>
+                    <tr>
+                        <td>5002</td>
+                        <td>Response Service</td>
+                        <td>HTTP/REST + Swagger</td>
+                        <td>Gateway/Testing</td>
+                    </tr>
+                    <tr>
+                        <td>5003</td>
+                        <td>Notification Service</td>
+                        <td>HTTP/REST + WebSocket (SignalR)</td>
+                        <td>Gateway/Testing</td>
+                    </tr>
+                    <tr>
+                        <td>5004</td>
+                        <td>User Service</td>
+                        <td>HTTP/REST + Swagger</td>
+                        <td>Gateway/Testing</td>
+                    </tr>
+                    <tr>
+                        <td>1433</td>
+                        <td>SQL Server</td>
+                        <td>TCP</td>
+                        <td>Backend services</td>
+                    </tr>
+                    <tr>
+                        <td>5672</td>
+                        <td>RabbitMQ (AMQP)</td>
+                        <td>TCP</td>
+                        <td>Backend services</td>
+                    </tr>
+                    <tr>
+                        <td>15672</td>
+                        <td>RabbitMQ Management UI</td>
+                        <td>HTTP</td>
+                        <td>Browser (admin only)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="note">
+                <strong>Ensure all ports are available</strong> and not blocked by firewalls before starting services
+            </div>
+        </div>
+
+        <h2>6. Optional Development Tools</h2>
+        <div class="section-group">
+            <ul>
+                <li><strong>Visual Studio 2022</strong> or <strong>Visual Studio Code</strong> - Code editing</li>
+                <li><strong>SQL Server Management Studio (SSMS)</strong> - Database administration</li>
+                <li><strong>RabbitMQ Management Console</strong> - Message queue monitoring (http://localhost:15672)</li>
+                <li><strong>Postman or Insomnia</strong> - API testing</li>
+                <li><strong>Git</strong> - Version control</li>
+                <li><strong>DBeaver Community</strong> - Alternative SQL database tool</li>
+            </ul>
+        </div>
+
+        <h2>7. Environment Variables Summary</h2>
+        <div class="section-group">
+            <h3>Critical Variables (Auto-set in Docker)</h3>
+            <ul>
+                <li><code>ASPNETCORE_ENVIRONMENT=Development</code> (or Production)</li>
+                <li><code>ConnectionStrings__*Db</code> - Database connection strings</li>
+                <li><code>Jwt__Secret</code> - JWT signing key</li>
+                <li><code>RabbitMQ__Host</code>, <code>RabbitMQ__Port</code> - Message broker</li>
+                <li><code>Smtp__*</code> - Email configuration</li>
+            </ul>
+
+            <div class="note">
+                All defaults provided in <code>docker-compose.yml</code> for quick start
+            </div>
+        </div>
+
+        <h2>Troubleshooting Checklist</h2>
+        <div class="section-group">
+            <ul>
+                <li>✓ Verify Docker/Docker Compose installation: <code>docker --version &amp;&amp; docker-compose --version</code></li>
+                <li>✓ Verify .NET SDK: <code>dotnet --version</code></li>
+                <li>✓ Verify Node.js: <code>node --version &amp;&amp; npm --version</code></li>
+                <li>✓ Check port availability: <code>netstat -tuln | grep LISTEN</code></li>
+                <li>✓ Increase Docker memory to 4GB+ in Docker Desktop settings</li>
+                <li>✓ Clear Docker volumes if database issues: <code>docker-compose down -v</code></li>
+                <li>✓ Check RabbitMQ health: http://localhost:15672 (guest/guest)</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>Made with IBM Bob</p>
+        </div>
+    </div>
+</body>
+</html>

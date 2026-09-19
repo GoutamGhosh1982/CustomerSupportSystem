@@ -1,0 +1,23 @@
+﻿# Build output
+**/bin/
+**/obj/
+
+# Visual Studio files
+*.user
+*.suo
+.vs/
+
+# NuGet
+packages/
+
+# Node.js
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

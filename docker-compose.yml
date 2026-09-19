@@ -1,0 +1,165 @@
+version: "3.9"
+
+services:
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: support-sqlserver
+    environment:
+      SA_PASSWORD: "YourPassword@123"
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "YourPassword@123", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: support-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  user-service:
+    build:
+      context: ./backend
+      dockerfile: UserService/Dockerfile
+    container_name: support-user-service
+    ports:
+      - "5004:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__UserDb=Server=sqlserver,1433;Database=UserDB;User Id=sa;Password=YourPassword@123;TrustServerCertificate=True
+      - Jwt__Issuer=CustomerSupportSystem
+      - Jwt__Audience=CustomerSupportClients
+      - Jwt__Secret=ThisIsAVeryLongSecretKeyForJwtTokenGeneration2024!@#
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+  ticket-service:
+    build:
+      context: ./backend
+      dockerfile: TicketService/Dockerfile
+    container_name: support-ticket-service
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__TicketDb=Server=sqlserver,1433;Database=TicketDB;User Id=sa;Password=YourPassword@123;TrustServerCertificate=True
+      - Jwt__Issuer=CustomerSupportSystem
+      - Jwt__Audience=CustomerSupportClients
+      - Jwt__Secret=ThisIsAVeryLongSecretKeyForJwtTokenGeneration2024!@#
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  response-service:
+    build:
+      context: ./backend
+      dockerfile: ResponseService/Dockerfile
+    container_name: support-response-service
+    ports:
+      - "5002:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__ResponseDb=Server=sqlserver,1433;Database=ResponseDB;User Id=sa;Password=YourPassword@123;TrustServerCertificate=True
+      - Jwt__Issuer=CustomerSupportSystem
+      - Jwt__Audience=CustomerSupportClients
+      - Jwt__Secret=ThisIsAVeryLongSecretKeyForJwtTokenGeneration2024!@#
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: ./backend
+      dockerfile: NotificationService/Dockerfile
+    container_name: support-notification-service
+    ports:
+      - "5003:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__NotificationDb=Server=sqlserver,1433;Database=NotificationDB;User Id=sa;Password=YourPassword@123;TrustServerCertificate=True
+      - Jwt__Issuer=CustomerSupportSystem
+      - Jwt__Audience=CustomerSupportClients
+      - Jwt__Secret=ThisIsAVeryLongSecretKeyForJwtTokenGeneration2024!@#
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+      - Smtp__Host=smtp.mailtrap.io
+      - Smtp__Port=587
+      - Smtp__Username=your-mailtrap-user
+      - Smtp__Password=your-mailtrap-pass
+      - Smtp__From=noreply@support.com
+      - Smtp__EnableSsl=true
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: Gateway/Dockerfile
+    container_name: support-gateway
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Jwt__Issuer=CustomerSupportSystem
+      - Jwt__Audience=CustomerSupportClients
+      - Jwt__Secret=ThisIsAVeryLongSecretKeyForJwtTokenGeneration2024!@#
+      - ReverseProxy__Clusters__user-cluster__Destinations__user-svc__Address=http://user-service:8080/
+      - ReverseProxy__Clusters__ticket-cluster__Destinations__ticket-svc__Address=http://ticket-service:8080/
+      - ReverseProxy__Clusters__response-cluster__Destinations__response-svc__Address=http://response-service:8080/
+      - ReverseProxy__Clusters__notification-cluster__Destinations__notification-svc__Address=http://notification-service:8080/
+    depends_on:
+      - user-service
+      - ticket-service
+      - response-service
+      - notification-service
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: support-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+
+volumes:
+  sqldata:
+  rabbitmqdata:

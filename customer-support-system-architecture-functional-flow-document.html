@@ -1,0 +1,825 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Customer Support System — Architecture &amp; Functional Flow</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.65;color:#1f2328;background:#fff;padding:32px 16px 80px}
+.page{max-width:780px;margin:0 auto}
+
+/* Header */
+.doc-header{border-bottom:2px solid #e5e7eb;padding-bottom:20px;margin-bottom:32px}
+.doc-header h1{font-size:22px;font-weight:700}
+.doc-header .sub{color:#57606a;font-size:13px;margin-top:4px}
+.badge-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.badge{background:#f7f8fa;border:1px solid #e5e7eb;border-radius:4px;padding:2px 8px;font-size:11px;color:#57606a;font-weight:600}
+.badge.blue{background:#eef4fb;border-color:#b6d0ef;color:#3b82d4}
+.badge.purple{background:#f3f0fb;border-color:#cdc4ef;color:#7c5cd8}
+.badge.green{background:#eafaf1;border-color:#b2dfc8;color:#2a7a4b}
+
+/* TOC */
+.toc{background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;padding:16px 20px;margin-bottom:36px}
+.toc h3{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#57606a;margin-bottom:10px}
+.toc ol{padding-left:18px}
+.toc li{margin:4px 0;font-size:13px}
+.toc a{color:#3b82d4;text-decoration:none}
+.toc a:hover{text-decoration:underline}
+
+/* Sections */
+h2{font-size:17px;font-weight:700;margin:40px 0 14px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;color:#1f2328}
+h3{font-size:14px;font-weight:700;margin:22px 0 8px;color:#1f2328}
+h4{font-size:13px;font-weight:600;margin:16px 0 6px;color:#57606a}
+p{margin-bottom:10px}
+ul,ol{padding-left:20px;margin-bottom:10px}
+li{margin:3px 0}
+strong{font-weight:600}
+
+/* Architecture SVG */
+.diagram{background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;padding:16px;margin:18px 0;overflow-x:auto}
+
+/* Service Cards */
+.svc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:16px 0}
+.svc-card{border:1px solid #e5e7eb;border-radius:6px;padding:14px 16px;background:#f7f8fa}
+.svc-card .svc-title{font-weight:700;font-size:13px;margin-bottom:4px}
+.svc-card .svc-port{font-size:11px;color:#57606a;margin-bottom:8px;font-family:monospace}
+.svc-card ul{padding-left:16px;margin:0}
+.svc-card li{font-size:12px;margin:2px 0;color:#1f2328}
+.svc-card .svc-db{margin-top:8px;font-size:11px;color:#57606a;border-top:1px solid #e5e7eb;padding-top:6px}
+
+/* Tables */
+.tbl-wrap{overflow-x:auto;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:#f7f8fa}
+th{text-align:left;padding:7px 10px;border:1px solid #e5e7eb;font-weight:600;font-size:12px}
+td{padding:7px 10px;border:1px solid #e5e7eb;vertical-align:top}
+tr:nth-child(even) td{background:#fafbfc}
+code{background:#f0f2f4;color:#1f2328;padding:1px 5px;border-radius:3px;font-size:12px;font-family:"Cascadia Code","Consolas",monospace}
+pre{background:#1f2328;color:#e6edf3;border-radius:6px;padding:14px 16px;font-size:12px;line-height:1.5;overflow-x:auto;margin:12px 0;font-family:"Cascadia Code","Consolas",monospace}
+pre code{background:none;color:inherit;padding:0}
+
+/* Flow Steps */
+.flow{margin:14px 0}
+.flow-step{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px}
+.flow-num{flex-shrink:0;width:26px;height:26px;background:#3b82d4;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-top:1px}
+.flow-num.green{background:#2a7a4b}
+.flow-num.purple{background:#7c5cd8}
+.flow-num.orange{background:#d97706}
+.flow-body{font-size:13px;padding-top:4px}
+.flow-body strong{display:block;margin-bottom:2px}
+
+/* Callout */
+.callout{border-left:3px solid #3b82d4;background:#f0f6ff;padding:10px 14px;border-radius:0 4px 4px 0;margin:12px 0;font-size:13px}
+.callout.green{border-color:#2a7a4b;background:#eafaf1}
+.callout.orange{border-color:#d97706;background:#fffbeb}
+
+/* Status pills */
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.pill.open{background:#fef9c3;color:#854d0e}
+.pill.prog{background:#dbeafe;color:#1d4ed8}
+.pill.esc{background:#fee2e2;color:#991b1b}
+.pill.closed{background:#dcfce7;color:#166534}
+
+/* Method tags */
+.m{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:700;font-family:monospace}
+.m.post{background:#dbeafe;color:#1d4ed8}
+.m.get{background:#dcfce7;color:#166534}
+.m.patch{background:#fef9c3;color:#854d0e}
+
+/* Section divider */
+.divider{border:none;border-top:1px solid #e5e7eb;margin:32px 0}
+
+/* Footer */
+.doc-footer{margin-top:56px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;font-size:12px;color:#57606a}
+</style>
+</head>
+<body>
+<div class="page">
+
+
+<div class="doc-header">
+  <h1>Customer Support Ticketing System</h1>
+  <div class="sub">Architecture &amp; Functional Flow Document  ·  v2.1  ·  .NET 10 · React 18 · SQL Server · RabbitMQ</div>
+  <div class="badge-row">
+    <span class="badge blue">.NET 10 Web API</span>
+    <span class="badge blue">React 18 + TypeScript</span>
+    <span class="badge blue">SQL Server 2025</span>
+    <span class="badge">RabbitMQ 4.0</span>
+    <span class="badge">YARP Gateway</span>
+    <span class="badge purple">SignalR</span>
+    <span class="badge green">JWT Auth</span>
+    <span class="badge">EF Core 9</span>
+  </div>
+</div>
+
+
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#overview">System Overview</a></li>
+    <li><a href="#arch">High-Level Architecture</a></li>
+    <li><a href="#services">Service Breakdown</a></li>
+    <li><a href="#db">Database Design</a></li>
+    <li><a href="#api">API Contracts</a></li>
+    <li><a href="#flows">Functional Flows — UI to DB</a>
+      <ol style="margin-top:4px">
+        <li><a href="#flow-login">User Login</a></li>
+        <li><a href="#flow-create">Create Ticket</a></li>
+        <li><a href="#flow-agent">Agent Views Dashboard</a></li>
+        <li><a href="#flow-status">Agent Updates Status</a></li>
+        <li><a href="#flow-response">Add Response</a></li>
+        <li><a href="#flow-notify">Real-time Notification</a></li>
+      </ol>
+    </li>
+    <li><a href="#events">RabbitMQ Event Bus</a></li>
+    <li><a href="#roles">Roles &amp; Permissions</a></li>
+    <li><a href="#stateflow">Ticket State Machine</a></li>
+    <li><a href="#frontend">Frontend Component Map</a></li>
+  </ol>
+</div>
+
+
+<h2 id="overview">1 · System Overview</h2>
+<p>The Customer Support Ticketing System is a full-stack microservices application that enables customers to raise support tickets and allows support agents to triage, respond to, and resolve them in real time. The system is decomposed into six independently deployable services that communicate over HTTP (REST) and asynchronously via RabbitMQ.</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Stakeholder</th><th>Role</th><th>Key Capabilities</th></tr></thead>
+  <tbody>
+    <tr><td>Customer</td><td>Ticket submitter</td><td>Submit tickets · Track own ticket list · Reply in thread · View status updates</td></tr>
+    <tr><td>Agent</td><td>Support staff</td><td>View all tickets · Reply · Update status · See internal notes</td></tr>
+    <tr><td>Supervisor</td><td>Team lead</td><td>All Agent capabilities + Assign tickets + View analytics</td></tr>
+    <tr><td>Admin</td><td>System administrator</td><td>All capabilities + Manage users + Change roles + Deactivate accounts</td></tr>
+  </tbody>
+</table>
+</div>
+
+
+<h2 id="arch">2 · High-Level Architecture</h2>
+<div class="diagram">
+<svg width="100%" font-family="-apple-system,'Segoe UI',sans-serif" font-size="12">
+  <defs>
+    <marker id="a1"><path d="M0,0 L0,6 L8,3z" fill="#57606a"></path></marker>
+    <marker id="a2"><path d="M0,0 L0,6 L8,3z" fill="#7c5cd8"></path></marker>
+    <marker id="a3"><path d="M0,0 L0,6 L8,3z" fill="#f59e0b"></path></marker>
+    <marker id="a4"><path d="M0,0 L0,6 L8,3z" fill="#adb5bd"></path></marker>
+    <marker id="a5"><path d="M0,0 L0,6 L8,3z" fill="#3b82d4"></path></marker>
+  </defs>
+
+  
+  <rect x="8" y="10" width="130" height="52" rx="5" fill="#eef4fb" stroke="#3b82d4" stroke-width="1.5"></rect>
+  <text x="73" y="31" text-anchor="middle" font-weight="700" fill="#1f2328">React SPA</text>
+  <text x="73" y="46" text-anchor="middle" font-size="10" fill="#57606a">localhost:3000</text>
+  <text x="73" y="58" text-anchor="middle" font-size="10" fill="#57606a">Vite · TanStack Query</text>
+
+  
+  <rect x="178" y="10" width="130" height="52" rx="5" fill="#f3f0fb" stroke="#7c5cd8" stroke-width="1.5"></rect>
+  <text x="243" y="31" text-anchor="middle" font-weight="700" fill="#1f2328">API Gateway</text>
+  <text x="243" y="46" text-anchor="middle" font-size="10" fill="#57606a">localhost:5000</text>
+  <text x="243" y="58" text-anchor="middle" font-size="10" fill="#57606a">YARP Reverse Proxy</text>
+
+  
+  <rect x="355" y="10" width="130" height="52" rx="5" fill="#eafaf1" stroke="#2a7a4b" stroke-width="1.5"></rect>
+  <text x="420" y="31" text-anchor="middle" font-weight="700" fill="#1f2328">Identity / Auth</text>
+  <text x="420" y="46" text-anchor="middle" font-size="10" fill="#57606a">JWT Bearer Tokens</text>
+  <text x="420" y="58" text-anchor="middle" font-size="10" fill="#57606a">BCrypt · Claims</text>
+
+  
+  <line x1="138" y1="36" x2="176" y2="36" stroke="#57606a" stroke-width="1.5" marker-end="url(#a1)"></line>
+  <text x="157" y="30" text-anchor="middle" font-size="9" fill="#57606a">HTTP/WS</text>
+  <line x1="308" y1="36" x2="353" y2="36" stroke="#57606a" stroke-width="1.5" marker-end="url(#a1)"></line>
+  <text x="330" y="30" text-anchor="middle" font-size="9" fill="#57606a">validate</text>
+
+  
+  <text x="10" y="105" font-size="10" fill="#57606a" font-weight="600">MICROSERVICES</text>
+
+  
+  <rect x="8" y="115" width="130" height="62" rx="5" fill="#f7f8fa" stroke="#e5e7eb" stroke-width="1.5"></rect>
+  <text x="73" y="135" text-anchor="middle" font-weight="700" font-size="12" fill="#1f2328">User Service</text>
+  <text x="73" y="150" text-anchor="middle" font-size="10" fill="#57606a">:5004</text>
+  <text x="73" y="164" text-anchor="middle" font-size="10" fill="#57606a">Register · Login · JWT</text>
+  <text x="73" y="173" text-anchor="middle" font-size="10" fill="#57606a">Roles · User Mgmt</text>
+
+  
+  <rect x="153" y="115" width="130" height="62" rx="5" fill="#f7f8fa" stroke="#e5e7eb" stroke-width="1.5"></rect>
+  <text x="218" y="135" text-anchor="middle" font-weight="700" font-size="12" fill="#1f2328">Ticket Service</text>
+  <text x="218" y="150" text-anchor="middle" font-size="10" fill="#57606a">:5001</text>
+  <text x="218" y="164" text-anchor="middle" font-size="10" fill="#57606a">Create · Query · Assign</text>
+  <text x="218" y="173" text-anchor="middle" font-size="10" fill="#57606a">Status · SLA · Filter</text>
+
+  
+  <rect x="298" y="115" width="130" height="62" rx="5" fill="#f7f8fa" stroke="#e5e7eb" stroke-width="1.5"></rect>
+  <text x="363" y="135" text-anchor="middle" font-weight="700" font-size="12" fill="#1f2328">Response Service</text>
+  <text x="363" y="150" text-anchor="middle" font-size="10" fill="#57606a">:5002</text>
+  <text x="363" y="164" text-anchor="middle" font-size="10" fill="#57606a">Threaded Replies</text>
+  <text x="363" y="173" text-anchor="middle" font-size="10" fill="#57606a">Attachments · Notes</text>
+
+  
+  <rect x="443" y="115" width="130" height="62" rx="5" fill="#f7f8fa" stroke="#e5e7eb" stroke-width="1.5"></rect>
+  <text x="508" y="135" text-anchor="middle" font-weight="700" font-size="12" fill="#1f2328">Notification Svc</text>
+  <text x="508" y="150" text-anchor="middle" font-size="10" fill="#57606a">:5003</text>
+  <text x="508" y="164" text-anchor="middle" font-size="10" fill="#57606a">Email · SignalR Push</text>
+  <text x="508" y="173" text-anchor="middle" font-size="10" fill="#57606a">Event Consumers</text>
+
+  
+  <line x1="208" y1="62" x2="73" y2="115" stroke="#7c5cd8" stroke-width="1" marker-end="url(#a2)"></line>
+  <line x1="230" y1="62" x2="200" y2="115" stroke="#7c5cd8" stroke-width="1" marker-end="url(#a2)"></line>
+  <line x1="256" y1="62" x2="345" y2="115" stroke="#7c5cd8" stroke-width="1" marker-end="url(#a2)"></line>
+  <line x1="278" y1="62" x2="490" y2="115" stroke="#7c5cd8" stroke-width="1" marker-end="url(#a2)"></line>
+
+  
+  <path d="M443,146 Q400,90 138,46" stroke="#3b82d4" stroke-width="1" fill="none" marker-end="url(#a5)"></path>
+  <text x="310" y="88" font-size="9" fill="#3b82d4">SignalR push</text>
+
+  
+  <rect x="8" y="235" width="565" height="38" rx="5" fill="#fff8e1" stroke="#f59e0b" stroke-width="1.5"></rect>
+  <text x="290" y="250" text-anchor="middle" font-weight="700" fill="#92400e" font-size="12">RabbitMQ Message Bus  (Topic Exchange: support.events)</text>
+  <text x="290" y="265" text-anchor="middle" font-size="10" fill="#92400e">ticket.created · ticket.updated · ticket.assigned · response.added</text>
+
+  
+  <line x1="218" y1="177" x2="218" y2="235" stroke="#f59e0b" stroke-width="1.2" marker-end="url(#a3)"></line>
+  <line x1="363" y1="177" x2="363" y2="235" stroke="#f59e0b" stroke-width="1.2" marker-end="url(#a3)"></line>
+  <line x1="508" y1="235" x2="508" y2="177" stroke="#f59e0b" stroke-width="1.2" marker-end="url(#a3)"></line>
+  <text x="525" y="210" font-size="9" fill="#f59e0b">consumes</text>
+  <text x="230" y="215" font-size="9" fill="#f59e0b">publishes</text>
+
+  
+  <text x="10" y="325" font-size="10" fill="#57606a" font-weight="600">SQL SERVER DATABASES (per-service)</text>
+
+  <ellipse cx="73" cy="365" rx="62" ry="22" fill="#f7f8fa" stroke="#e5e7eb" stroke-width="1.5"></ellipse>
+  <text x="73" y="361" text-anchor="middle" font-weight="700" font-size="11" fill="#1f2328">UserDB</text>
+  <text x="73" y="376" text-anchor="middle" font-size="10" fill="#57606a">Users</text>
+
+  <ellipse cx="218" cy="365" rx="62" ry="22" fill="#f7f8fa" stroke="#e5e7eb" stroke-width="1.5"></ellipse>
+  <text x="218" y="361" text-anchor="middle" font-weight="700" font-size="11" fill="#1f2328">TicketDB</text>
+  <text x="218" y="376" text-anchor="middle" font-size="10" fill="#57606a">Tickets</text>
+
+  <ellipse cx="363" cy="365" rx="62" ry="22" fill="#f7f8fa" stroke="#e5e7eb" stroke-width="1.5"></ellipse>
+  <text x="363" y="361" text-anchor="middle" font-weight="700" font-size="11" fill="#1f2328">ResponseDB</text>
+  <text x="363" y="376" text-anchor="middle" font-size="10" fill="#57606a">Responses · Attachments</text>
+
+  <ellipse cx="508" cy="365" rx="62" ry="22" fill="#f7f8fa" stroke="#e5e7eb" stroke-width="1.5"></ellipse>
+  <text x="508" y="361" text-anchor="middle" font-weight="700" font-size="11" fill="#1f2328">NotificationDB</text>
+  <text x="508" y="376" text-anchor="middle" font-size="10" fill="#57606a">NotificationLogs</text>
+
+  
+  <line x1="73" y1="177" x2="73" y2="343" stroke="#adb5bd" stroke-width="1" marker-end="url(#a4)"></line>
+  <line x1="218" y1="177" x2="218" y2="343" stroke="#adb5bd" stroke-width="1" marker-end="url(#a4)"></line>
+  <line x1="363" y1="177" x2="363" y2="343" stroke="#adb5bd" stroke-width="1" marker-end="url(#a4)"></line>
+  <line x1="508" y1="177" x2="508" y2="343" stroke="#adb5bd" stroke-width="1" marker-end="url(#a4)"></line>
+
+  
+  <rect x="4" y="420" width="575" height="26" rx="4" fill="none" stroke="#7c5cd8" stroke-width="1"></rect>
+  <text x="290" y="437" text-anchor="middle" font-size="11" fill="#7c5cd8" font-weight="600">Docker Compose · Azure AKS · Azure SQL · Azure Service Bus (prod)</text>
+</svg>
+</div>
+
+<div class="callout">
+  <strong>Database-per-Service pattern:</strong> Each microservice owns its own SQL Server database. No service ever queries another service's database directly — cross-service data flows only through RabbitMQ events or REST API calls via the Gateway.
+</div>
+
+
+<h2 id="services">3 · Service Breakdown</h2>
+<div class="svc-grid">
+
+  <div class="svc-card">
+    <div class="svc-title">🚪 API Gateway</div>
+    <div class="svc-port">localhost:5000 · YARP</div>
+    <ul>
+      <li>Single entry-point for React SPA</li>
+      <li>Route-based reverse proxy to all services</li>
+      <li>JWT token validation before forwarding</li>
+      <li>CORS policy enforcement</li>
+      <li>WebSocket pass-through for SignalR</li>
+    </ul>
+    <div class="svc-db">No database</div>
+  </div>
+
+  <div class="svc-card">
+    <div class="svc-title">👤 User Service</div>
+    <div class="svc-port">localhost:5004 · UserDB</div>
+    <ul>
+      <li>Register new accounts (Customer default)</li>
+      <li>Login with BCrypt password verification</li>
+      <li>Issue JWT tokens (8 hr expiry)</li>
+      <li>List / get users (Agent+)</li>
+      <li>Change user role (Supervisor+)</li>
+      <li>Deactivate user accounts (Supervisor+)</li>
+      <li>Seed users re-hashed on every startup (ensures credentials always valid)</li>
+    </ul>
+    <div class="svc-db">Table: <strong>Users</strong></div>
+  </div>
+
+  <div class="svc-card">
+    <div class="svc-title">🎫 Ticket Service</div>
+    <div class="svc-port">localhost:5001 · TicketDB</div>
+    <ul>
+      <li>Create ticket with auto-generated number</li>
+      <li>Calculate SLA deadline by priority</li>
+      <li>Enforce state machine (Open→InProgress→Escalated→Closed)</li>
+      <li>Paginated / filtered ticket listing</li>
+      <li>Assign ticket to agent</li>
+      <li>Publish events to RabbitMQ</li>
+    </ul>
+    <div class="svc-db">Table: <strong>Tickets</strong></div>
+  </div>
+
+  <div class="svc-card">
+    <div class="svc-title">💬 Response Service</div>
+    <div class="svc-port">localhost:5002 · ResponseDB</div>
+    <ul>
+      <li>Add customer or agent reply to ticket thread</li>
+      <li>Internal-only agent notes (hidden from customers)</li>
+      <li>File attachment upload (local filesystem / blob)</li>
+      <li>Fetch full conversation thread for a ticket</li>
+      <li>Publish <code>response.added</code> event</li>
+    </ul>
+    <div class="svc-db">Tables: <strong>Responses · Attachments</strong></div>
+  </div>
+
+  <div class="svc-card">
+    <div class="svc-title">🔔 Notification Service</div>
+    <div class="svc-port">localhost:5003 · NotificationDB</div>
+    <ul>
+      <li>Consume all domain events from RabbitMQ</li>
+      <li>Send email via SMTP on ticket events</li>
+      <li>Push real-time notifications via SignalR hub</li>
+      <li>Broadcast to role groups (agents) or ticket groups</li>
+      <li>Log every delivery attempt to DB</li>
+    </ul>
+    <div class="svc-db">Table: <strong>NotificationLogs</strong></div>
+  </div>
+
+  <div class="svc-card">
+    <div class="svc-title">⚛️ React Frontend</div>
+    <div class="svc-port">localhost:3000 · Vite + TS</div>
+    <ul>
+      <li>Login / Register pages (Zod validation)</li>
+      <li>Submit ticket form (customer)</li>
+      <li>My Tickets list (customer)</li>
+      <li>Agent dashboard with filters + pagination</li>
+      <li>Ticket detail + conversation thread</li>
+      <li>Analytics dashboard (charts + KPIs)</li>
+      <li>Admin user management</li>
+      <li>Real-time updates via SignalR hook</li>
+    </ul>
+    <div class="svc-db">State: Zustand · Cache: TanStack Query</div>
+  </div>
+
+</div>
+
+
+<h2 id="db">4 · Database Design</h2>
+
+<h3>UserDB — Users Table</h3>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Column</th><th>Type</th><th>Constraint</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>Id</code></td><td>UNIQUEIDENTIFIER</td><td>PK</td><td>Auto-generated GUID</td></tr>
+    <tr><td><code>Email</code></td><td>NVARCHAR(200)</td><td>UNIQUE · NOT NULL</td><td>Login identifier (lowercase)</td></tr>
+    <tr><td><code>FullName</code></td><td>NVARCHAR(150)</td><td>NOT NULL</td><td>Display name</td></tr>
+    <tr><td><code>PasswordHash</code></td><td>NVARCHAR(500)</td><td>NOT NULL</td><td>BCrypt hash (work factor 11)</td></tr>
+    <tr><td><code>Role</code></td><td>NVARCHAR(20)</td><td>CHECK IN (Customer,Agent,Supervisor,Admin)</td><td>Authorization role</td></tr>
+    <tr><td><code>IsActive</code></td><td>BIT</td><td>DEFAULT 1</td><td>Soft-delete flag</td></tr>
+    <tr><td><code>CreatedAt</code></td><td>DATETIME2</td><td>DEFAULT GETUTCDATE()</td><td>Registration timestamp</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>TicketDB — Tickets Table</h3>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Column</th><th>Type</th><th>Constraint</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>Id</code></td><td>UNIQUEIDENTIFIER</td><td>PK</td><td>Auto GUID</td></tr>
+    <tr><td><code>TicketNumber</code></td><td>NVARCHAR(20)</td><td>UNIQUE</td><td>Human-readable (TKT-0001)</td></tr>
+    <tr><td><code>Title</code></td><td>NVARCHAR(200)</td><td>NOT NULL</td><td>Short issue summary</td></tr>
+    <tr><td><code>Description</code></td><td>NVARCHAR(MAX)</td><td>NOT NULL</td><td>Full problem description</td></tr>
+    <tr><td><code>Status</code></td><td>NVARCHAR(20)</td><td>CHECK (Open|InProgress|Escalated|Closed)</td><td>Current lifecycle state</td></tr>
+    <tr><td><code>Priority</code></td><td>NVARCHAR(10)</td><td>CHECK (Low|Medium|High|Critical)</td><td>Urgency level → drives SLA</td></tr>
+    <tr><td><code>Category</code></td><td>NVARCHAR(50)</td><td>NOT NULL</td><td>Issue type classification</td></tr>
+    <tr><td><code>CustomerId</code></td><td>UNIQUEIDENTIFIER</td><td>NOT NULL</td><td>FK to UserDB.Users.Id (logical)</td></tr>
+    <tr><td><code>AssignedToId</code></td><td>UNIQUEIDENTIFIER</td><td>NULL</td><td>Agent GUID when assigned</td></tr>
+    <tr><td><code>SlaDeadline</code></td><td>DATETIME2</td><td>NULL</td><td>Critical=4h, High=8h, Medium=24h, Low=48h</td></tr>
+    <tr><td><code>CreatedAt / UpdatedAt / ClosedAt</code></td><td>DATETIME2</td><td>—</td><td>Lifecycle timestamps</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="callout orange">
+  <strong>SQL Server Trigger note:</strong> The <code>Tickets</code> table has a database-level trigger. EF Core's default UPDATE statement uses an <code>OUTPUT</code> clause which SQL Server forbids on triggered tables. The EF Core model is configured with <code>t.UseSqlOutputClause(false)</code> in <code>TicketDbContext.OnModelCreating()</code> to use a compatible UPDATE form.
+</div>
+
+<h3>ResponseDB — Responses &amp; Attachments</h3>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Column</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>Id / TicketId / AuthorId</code></td><td>UNIQUEIDENTIFIER</td><td>PK + logical FKs</td></tr>
+    <tr><td><code>AuthorType</code></td><td>NVARCHAR(10)</td><td>Customer or Agent</td></tr>
+    <tr><td><code>Body</code></td><td>NVARCHAR(MAX)</td><td>Reply text (markdown supported)</td></tr>
+    <tr><td><code>IsInternal</code></td><td>BIT</td><td>1 = agent-only note, hidden from customer</td></tr>
+    <tr><td><code>Attachments.BlobUrl</code></td><td>NVARCHAR(500)</td><td>File path or Azure Blob URL</td></tr>
+  </tbody>
+</table>
+</div>
+
+
+<h2 id="api">5 · API Contracts</h2>
+
+<h3>User Service — Auth &amp; Users</h3>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="m post">POST</span></td><td><code>/api/auth/register</code></td><td>None</td><td>Register new customer account → returns JWT</td></tr>
+    <tr><td><span class="m post">POST</span></td><td><code>/api/auth/login</code></td><td>None</td><td>Login → verify BCrypt hash → return JWT + role</td></tr>
+    <tr><td><span class="m get">GET</span></td><td><code>/api/users</code></td><td>Agent+</td><td>List all users</td></tr>
+    <tr><td><span class="m get">GET</span></td><td><code>/api/users/{id}</code></td><td>Any</td><td>Get user by ID</td></tr>
+    <tr><td><span class="m patch">PATCH</span></td><td><code>/api/users/{id}/role</code></td><td>Supervisor+</td><td>Update user role</td></tr>
+    <tr><td><span class="m patch">PATCH</span></td><td><code>/api/users/{id}/deactivate</code></td><td>Supervisor+</td><td>Soft-delete user</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Ticket Service — Tickets</h3>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="m post">POST</span></td><td><code>/api/tickets</code></td><td>Customer</td><td>Create ticket → auto-number → compute SLA → publish event</td></tr>
+    <tr><td><span class="m get">GET</span></td><td><code>/api/tickets</code></td><td>Agent+</td><td>Paginated list with status/priority/category/agentId filters</td></tr>
+    <tr><td><span class="m get">GET</span></td><td><code>/api/tickets/my</code></td><td>Customer</td><td>Customer's own tickets ordered by date</td></tr>
+    <tr><td><span class="m get">GET</span></td><td><code>/api/tickets/{id}</code></td><td>Any</td><td>Full ticket detail</td></tr>
+    <tr><td><span class="m patch">PATCH</span></td><td><code>/api/tickets/{id}/status</code></td><td>Agent+</td><td>Transition status (enforced by state machine)</td></tr>
+    <tr><td><span class="m patch">PATCH</span></td><td><code>/api/tickets/{id}/assign</code></td><td>Supervisor+</td><td>Assign to agent → auto set InProgress</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Response Service — Responses</h3>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="m post">POST</span></td><td><code>/api/responses</code></td><td>Any</td><td>Add reply to ticket thread → publish event</td></tr>
+    <tr><td><span class="m get">GET</span></td><td><code>/api/responses/{ticketId}</code></td><td>Any</td><td>Get thread (customers see public only; agents see internal too)</td></tr>
+    <tr><td><span class="m post">POST</span></td><td><code>/api/responses/{id}/attachments</code></td><td>Any</td><td>Upload file attachment (max 10 MB)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<hr class="divider" />
+
+
+<h2 id="flows">6 · Functional Flows — UI to DB</h2>
+
+
+<h3 id="flow-login">6.1 — User Login</h3>
+<div class="flow">
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-body"><strong>React — LoginPage.tsx</strong>
+    User enters email + password. React Hook Form + Zod validates fields client-side. On submit calls <code>authApi.login()</code> → <code>POST /api/auth/login</code> via Axios.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-body"><strong>Gateway — YARP</strong>
+    Receives request on <code>:5000</code>. Matches <code>/api/auth</code> route. No JWT check on auth routes. Forwards to <code>UserService :5004</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-body"><strong>UserService — AuthController.Login()</strong>
+    Looks up user by email via <code>UserRepository.GetByEmailAsync()</code>. Runs <code>BCrypt.Verify(password, hash)</code>. Checks <code>IsActive == true</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">4</div>
+    <div class="flow-body"><strong>UserDB — SQL Query</strong>
+    <code>SELECT * FROM Users WHERE Email = @email</code>. Returns User row with PasswordHash, Role, FullName.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">5</div>
+    <div class="flow-body"><strong>UserService — AuthService.GenerateToken()</strong>
+    Creates JWT with claims: <code>userId</code>, <code>email</code>, <code>fullName</code>, <code>role</code>. Signed with HMAC-SHA256. Expires in 8 hours.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">6</div>
+    <div class="flow-body"><strong>React — authStore (Zustand)</strong>
+    Receives <code>AuthResponse</code> (token, userId, fullName, email, role). Stores in <code>localStorage</code>. Zustand state updated → <code>isAuthenticated = true</code>. Redirects: Customer → <code>/tickets</code>, Agent+ → <code>/dashboard</code>.</div>
+  </div>
+</div>
+
+
+<h3 id="flow-create">6.2 — Customer Creates a Ticket</h3>
+<div class="flow">
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-body"><strong>React — SubmitTicketPage.tsx</strong>
+    Customer fills Title, Description (min 20 chars), Category, Priority. Zod schema validates. <code>useCreateTicket()</code> mutation calls <code>POST /api/tickets</code> with JWT Bearer header.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-body"><strong>Gateway — YARP</strong>
+    Validates JWT token (signature, expiry, issuer). Extracts claims. Forwards to <code>TicketService :5001</code> with all headers intact.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-body"><strong>TicketService — TicketsController.Create()</strong>
+    Checks <code>[Authorize(Roles="Customer")]</code>. Reads <code>userId</code>, <code>fullName</code>, <code>email</code> from JWT claims. Calls <code>TicketAppService.CreateAsync()</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">4</div>
+    <div class="flow-body"><strong>TicketService — TicketAppService.CreateAsync()</strong>
+    Queries <code>GetCountAsync()</code> → generates <code>TKT-{n:D4}</code> number. Calculates SLA: Critical=4h, High=8h, Medium=24h, Low=48h. Builds Ticket entity. Calls <code>TicketRepository.CreateAsync()</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">5</div>
+    <div class="flow-body"><strong>TicketDB — SQL INSERT</strong>
+    EF Core executes: <code>INSERT INTO Tickets (Id, TicketNumber, Title, Description, Status, Priority, Category, CustomerId, SlaDeadline, ...) VALUES (...)</code>. Status defaults to <span class="pill open">Open</span>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num orange">6</div>
+    <div class="flow-body"><strong>TicketService → RabbitMQ</strong>
+    Publishes <code>TicketCreatedEvent</code> to exchange <code>support.events</code> with routing key <code>ticket.created</code>. (Non-fatal: if RabbitMQ unavailable, ticket is still saved.)</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num orange">7</div>
+    <div class="flow-body"><strong>NotificationService — TicketEventConsumer</strong>
+    Consumes <code>notif.ticket.created</code> queue. Calls <code>EmailService.SendAsync()</code> to customer. Calls <code>SignalR hub</code> → broadcasts <code>TicketCreated</code> event to <code>agents</code> group.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">8</div>
+    <div class="flow-body"><strong>React — useSignalR hook</strong>
+    Agent dashboards listening on SignalR receive <code>TicketCreated</code> event. TanStack Query cache invalidated → dashboard auto-refreshes without page reload. Toast notification shown.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">9</div>
+    <div class="flow-body"><strong>React — SubmitTicketPage.tsx</strong>
+    Receives <code>201 Created</code> + TicketDto. Shows success toast with ticket number. Navigates to <code>/tickets/{id}</code> (TicketDetailPage).</div>
+  </div>
+</div>
+
+
+<h3 id="flow-agent">6.3 — Agent Views Dashboard</h3>
+<div class="flow">
+  <div class="flow-step">
+    <div class="flow-num green">1</div>
+    <div class="flow-body"><strong>React — AgentDashboard.tsx</strong>
+    Component mounts. <code>useTickets(filters)</code> hook fires. TanStack Query checks cache (staleTime 30s). On cache miss → calls <code>GET /api/tickets?status=&amp;priority=&amp;page=1&amp;pageSize=20</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num green">2</div>
+    <div class="flow-body"><strong>Gateway → TicketService</strong>
+    JWT validated (role must be Agent/Supervisor/Admin). Forwarded to <code>:5001</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num green">3</div>
+    <div class="flow-body"><strong>TicketService — TicketRepository.GetAllAsync()</strong>
+    Builds dynamic LINQ query: <code>WHERE Status = @s AND Priority = @p AND Category = @c</code>. Executes COUNT for total. Applies <code>ORDER BY CreatedAt DESC</code>, <code>SKIP/TAKE</code> for pagination.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num green">4</div>
+    <div class="flow-body"><strong>TicketDB — SQL</strong>
+    Two queries: <code>SELECT COUNT(*) FROM Tickets WHERE ...</code> and <code>SELECT ... OFFSET n ROWS FETCH NEXT 20 ROWS ONLY</code>. Returns <code>PagedResult&lt;TicketDto&gt;</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num green">5</div>
+    <div class="flow-body"><strong>React — AgentDashboard.tsx</strong>
+    Renders table with StatusBadge + PriorityBadge components. Filter dropdowns bound to state → onChange triggers new query with updated params. Pagination controls update page number.</div>
+  </div>
+</div>
+
+
+<h3 id="flow-status">6.4 — Agent Updates Ticket Status</h3>
+<div class="flow">
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-body"><strong>React — TicketDetailPage.tsx</strong>
+    Agent clicks "Mark as Closed" button. <code>useUpdateTicketStatus()</code> mutation fires: <code>PATCH /api/tickets/{id}/status</code> body: <code>{"status":"Closed","note":"Issue resolved"}</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-body"><strong>TicketService — UpdateStatusAsync()</strong>
+    Loads ticket from DB. Validates new status is in <code>["Open","InProgress","Escalated","Closed"]</code>. Records old status. Sets <code>ticket.Status = "Closed"</code>, <code>ticket.ClosedAt = UtcNow</code>. Saves via EF Core (<code>UseSqlOutputClause(false)</code> ensures compatibility with the Tickets table trigger).</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-body"><strong>TicketDB — SQL UPDATE</strong>
+    EF Core executes <code>UPDATE Tickets SET Status='Closed', ClosedAt=@now, UpdatedAt=@now WHERE Id=@id</code> without an <code>OUTPUT</code> clause (required due to SQL trigger on the table).</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num orange">4</div>
+    <div class="flow-body"><strong>RabbitMQ — ticket.updated event</strong>
+    Publishes <code>TicketUpdatedEvent</code> with oldStatus, newStatus, updatedBy, note. Wrapped in try/catch — if RabbitMQ is unavailable the DB update is still committed and a <code>[WARN]</code> is logged. Notification service consumes → pushes <code>TicketUpdated</code> to SignalR group <code>ticket-{id}</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">5</div>
+    <div class="flow-body"><strong>React — real-time refresh</strong>
+    All browsers viewing that ticket receive SignalR push. TanStack Query cache for <code>["ticket", id]</code> is invalidated → refetch → UI updates status badge instantly without page reload.</div>
+  </div>
+</div>
+
+
+<h3 id="flow-response">6.5 — Agent/Customer Adds a Response</h3>
+<div class="flow">
+  <div class="flow-step">
+    <div class="flow-num purple">1</div>
+    <div class="flow-body"><strong>React — TicketDetailPage.tsx</strong>
+    User types reply in text area. Agents can tick "Internal note" checkbox. On submit: <code>useAddResponse()</code> calls <code>POST /api/responses</code> body: <code>{"ticketId":"...","body":"...","isInternal":false}</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num purple">2</div>
+    <div class="flow-body"><strong>ResponseService — ResponsesController.Add()</strong>
+    Reads <code>userId</code>, <code>fullName</code>, <code>email</code>, <code>role</code> from JWT claims. Sets <code>authorType = role == "Customer" ? "Customer" : "Agent"</code>. Calls <code>ResponseAppService.AddAsync()</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num purple">3</div>
+    <div class="flow-body"><strong>ResponseDB — SQL INSERT</strong>
+    <code>INSERT INTO Responses (Id, TicketId, AuthorId, AuthorType, Body, IsInternal, CreatedAt) VALUES (...)</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num orange">4</div>
+    <div class="flow-body"><strong>RabbitMQ — response.added event</strong>
+    <code>ResponseAddedEvent</code> published. NotificationService consumes → broadcasts <code>ResponseAdded</code> to SignalR group <code>ticket-{ticketId}</code>.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num purple">5</div>
+    <div class="flow-body"><strong>React — thread refresh</strong>
+    SignalR event received. <code>useResponses(ticketId)</code> query invalidated → refetch. New bubble appears in thread. Customers only see <code>IsInternal = false</code> responses; agents see all.</div>
+  </div>
+</div>
+
+
+<h3 id="flow-notify">6.6 — Real-time Notification Pipeline</h3>
+<div class="flow">
+  <div class="flow-step">
+    <div class="flow-num orange">1</div>
+    <div class="flow-body"><strong>Any Service → RabbitMQ</strong>
+    Ticket or Response service publishes event to topic exchange <code>support.events</code> with a routing key (<code>ticket.created</code>, <code>ticket.updated</code>, <code>ticket.assigned</code>, <code>response.added</code>).</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num orange">2</div>
+    <div class="flow-body"><strong>RabbitMQ — queue routing</strong>
+    Exchange routes to bound durable queues: <code>notif.ticket.created</code>, <code>notif.ticket.updated</code>, <code>notif.ticket.assigned</code>, <code>notif.response.added</code>. Message persisted until consumed.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num orange">3</div>
+    <div class="flow-body"><strong>NotificationService — TicketEventConsumer</strong>
+    <code>BackgroundService</code> with <code>AsyncEventingBasicConsumer</code>. Deserialises JSON payload. Dispatches to appropriate handler (HandleTicketCreated, HandleTicketUpdated, etc.).</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num orange">4</div>
+    <div class="flow-body"><strong>Email via SMTP</strong>
+    For ticket.created and ticket.assigned: calls <code>SmtpEmailService.SendAsync()</code>. Sends HTML email. Delivery result logged to <code>NotificationLogs</code> table.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num orange">5</div>
+    <div class="flow-body"><strong>SignalR push to React</strong>
+    <code>IHubContext&lt;NotificationHub&gt;</code> used to push to groups: <code>agents</code> group (new tickets/assignments) or <code>ticket-{id}</code> group (status updates, responses). Message delivered to all connected browser tabs in that group.</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num orange">6</div>
+    <div class="flow-body"><strong>React — useSignalR hook</strong>
+    HubConnection registered in <code>Layout.tsx</code> (always-on). Handlers call <code>queryClient.invalidateQueries()</code> to trigger refetch + <code>toast.info()</code> for visual alert. No polling — purely event-driven.</div>
+  </div>
+</div>
+
+
+<h2 id="events">7 · RabbitMQ Event Bus</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Routing Key</th><th>Published By</th><th>Queue</th><th>Consumed By</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><code>ticket.created</code></td><td>TicketService</td><td>notif.ticket.created</td><td>NotificationSvc</td><td>Email to customer + SignalR to agents</td></tr>
+    <tr><td><code>ticket.updated</code></td><td>TicketService</td><td>notif.ticket.updated</td><td>NotificationSvc</td><td>SignalR to ticket-{id} group</td></tr>
+    <tr><td><code>ticket.assigned</code></td><td>TicketService</td><td>notif.ticket.assigned</td><td>NotificationSvc</td><td>Email to agent + SignalR to agents group</td></tr>
+    <tr><td><code>response.added</code></td><td>ResponseService</td><td>notif.response.added</td><td>NotificationSvc</td><td>SignalR to ticket-{id} group</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="callout orange">
+  <strong>Resilience:</strong> All <code>Publish()</code> calls in <code>TicketAppService</code> (<code>CreateAsync</code>, <code>UpdateStatusAsync</code>, <code>AssignAsync</code>) and <code>ResponseAppService</code> are individually wrapped in try/catch. If RabbitMQ is unavailable the HTTP operation succeeds and the DB change is committed — a <code>[WARN]</code> is written to the console. RabbitMQ is an optional enhancement, not a hard dependency for core CRUD operations.
+</div>
+
+
+<h2 id="roles">8 · Roles &amp; Permissions</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Action</th><th>Customer</th><th>Agent</th><th>Supervisor</th><th>Admin</th></tr></thead>
+  <tbody>
+    <tr><td>Register / Login</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+    <tr><td>Submit a ticket</td><td>✔</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>View own tickets</td><td>✔</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>View all tickets</td><td>—</td><td>✔</td><td>✔</td><td>✔</td></tr>
+    <tr><td>Reply to ticket</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+    <tr><td>Add internal note</td><td>—</td><td>✔</td><td>✔</td><td>✔</td></tr>
+    <tr><td>Update ticket status</td><td>—</td><td>✔</td><td>✔</td><td>✔</td></tr>
+    <tr><td>Assign ticket to agent</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
+    <tr><td>View analytics dashboard</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
+    <tr><td>Manage users / roles</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
+    <tr><td>Deactivate accounts</td><td>—</td><td>—</td><td>✔</td><td>✔</td></tr>
+  </tbody>
+</table>
+</div>
+
+
+<h2 id="stateflow">9 · Ticket State Machine</h2>
+<div class="diagram">
+<svg width="100%" font-family="-apple-system,'Segoe UI',sans-serif" font-size="12">
+  <defs>
+    <marker id="sa"><path d="M0,0 L0,6 L8,3z" fill="#57606a"></path></marker>
+  </defs>
+
+  
+  <rect x="20" y="55" width="110" height="50" rx="6" fill="#fef9c3" stroke="#d97706" stroke-width="1.5"></rect>
+  <text x="75" y="77" text-anchor="middle" font-weight="700" fill="#92400e">Open</text>
+  <text x="75" y="93" text-anchor="middle" font-size="10" fill="#92400e">Initial state</text>
+
+  
+  <rect x="185" y="55" width="130" height="50" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"></rect>
+  <text x="250" y="77" text-anchor="middle" font-weight="700" fill="#1d4ed8">In Progress</text>
+  <text x="250" y="93" text-anchor="middle" font-size="10" fill="#1d4ed8">Agent assigned</text>
+
+  
+  <rect x="375" y="20" width="120" height="50" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5"></rect>
+  <text x="435" y="42" text-anchor="middle" font-weight="700" fill="#991b1b">Escalated</text>
+  <text x="435" y="58" text-anchor="middle" font-size="10" fill="#991b1b">High urgency</text>
+
+  
+  <rect x="545" y="55" width="110" height="50" rx="6" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"></rect>
+  <text x="600" y="77" text-anchor="middle" font-weight="700" fill="#166534">Closed</text>
+  <text x="600" y="93" text-anchor="middle" font-size="10" fill="#166534">Terminal state</text>
+
+  
+  <line x1="130" y1="80" x2="183" y2="80" stroke="#57606a" stroke-width="1.5" marker-end="url(#sa)"></line>
+  <text x="156" y="72" text-anchor="middle" font-size="9" fill="#57606a">assign / start</text>
+
+  
+  <line x1="305" y1="67" x2="373" y2="52" stroke="#57606a" stroke-width="1.5" marker-end="url(#sa)"></line>
+  <text x="338" y="52" text-anchor="middle" font-size="9" fill="#57606a">escalate</text>
+
+  
+  <line x1="315" y1="80" x2="543" y2="80" stroke="#57606a" stroke-width="1.5" marker-end="url(#sa)"></line>
+  <text x="429" y="97" text-anchor="middle" font-size="9" fill="#57606a">resolve</text>
+
+  
+  <line x1="495" y1="55" x2="570" y2="65" stroke="#57606a" stroke-width="1.5" marker-end="url(#sa)"></line>
+  <text x="543" y="52" text-anchor="middle" font-size="9" fill="#57606a">resolve</text>
+
+  
+  <path d="M75,105 Q75,145 600,105" stroke="#adb5bd" stroke-width="1" fill="none" marker-end="url(#sa)"></path>
+  <text x="338" y="148" text-anchor="middle" font-size="9" fill="#adb5bd">direct close (any role)</text>
+
+  
+  <path d="M375,55 Q360,30 315,60" stroke="#adb5bd" stroke-width="1" fill="none" marker-end="url(#sa)"></path>
+  <text x="340" y="28" text-anchor="middle" font-size="9" fill="#adb5bd">de-escalate</text>
+</svg>
+</div>
+
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Transition</th><th>Trigger</th><th>Who Can</th><th>Side Effect</th></tr></thead>
+  <tbody>
+    <tr><td>→ <span class="pill prog">InProgress</span></td><td>Ticket assigned to agent</td><td>Supervisor+</td><td>Sets AssignedToId · Publishes ticket.assigned</td></tr>
+    <tr><td>→ <span class="pill esc">Escalated</span></td><td>Manual status update</td><td>Agent+</td><td>Publishes ticket.updated</td></tr>
+    <tr><td>→ <span class="pill closed">Closed</span></td><td>Manual status update</td><td>Agent+</td><td>Sets ClosedAt · Publishes ticket.updated · Reply box hidden</td></tr>
+  </tbody>
+</table>
+</div>
+
+
+<h2 id="frontend">10 · Frontend Component Map</h2>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Route</th><th>Component</th><th>Role</th><th>Data Source</th><th>Key Features</th></tr></thead>
+  <tbody>
+    <tr><td><code>/login</code></td><td>LoginPage</td><td>All</td><td>POST /api/auth/login</td><td>Zod form · JWT storage · role-based redirect</td></tr>
+    <tr><td><code>/register</code></td><td>RegisterPage</td><td>All</td><td>POST /api/auth/register</td><td>Auto-login after register</td></tr>
+    <tr><td><code>/tickets/new</code></td><td>SubmitTicketPage</td><td>Customer</td><td>POST /api/tickets</td><td>Category/Priority dropdowns · Zod validation</td></tr>
+    <tr><td><code>/tickets</code></td><td>MyTicketsPage</td><td>Customer</td><td>GET /api/tickets/my</td><td>Status + Priority badges · Link to detail</td></tr>
+    <tr><td><code>/tickets/:id</code></td><td>TicketDetailPage</td><td>All</td><td>GET /api/tickets/:id · GET /api/responses/:id</td><td>Threaded messages · Status controls · Internal notes · SignalR live updates</td></tr>
+    <tr><td><code>/dashboard</code></td><td>AgentDashboard</td><td>Agent+</td><td>GET /api/tickets (paginated)</td><td>Status/Priority/Category filters · Pagination · SignalR new-ticket alerts</td></tr>
+    <tr><td><code>/analytics</code></td><td>AnalyticsDashboard</td><td>Supervisor+</td><td>GET /api/tickets (multi-query)</td><td>KPI cards · Pie chart (status) · Bar chart (category) · Recharts</td></tr>
+    <tr><td><code>/admin/users</code></td><td>UserManagementPage</td><td>Admin</td><td>GET/PATCH /api/users</td><td>Role dropdown · Deactivate button</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout green">
+  <strong>Global real-time layer:</strong> <code>useSignalR()</code> is activated in <code>Layout.tsx</code> (shared shell) so the SignalR connection is established once after login and remains active for the entire session across all pages. Ticket-specific subscriptions (<code>ticket-{id}</code> group) are added when a detail page opens and cleaned up on unmount.
+</div>
+
+<div class="callout green" style="margin-top:40px">
+  <strong>v2.1 Changelog</strong>
+  <ul style="margin-top:6px">
+    <li><strong>Bug fix — ticket status update (500 error):</strong> The <code>Tickets</code> table has a SQL Server trigger. EF Core's <code>UPDATE</code> was using an <code>OUTPUT</code> clause which SQL Server forbids on triggered tables. Fixed by adding <code>t.UseSqlOutputClause(false)</code> to <code>TicketDbContext</code>.</li>
+    <li><strong>Bug fix — RabbitMQ resilience in UpdateStatusAsync / AssignAsync:</strong> <code>Publish()</code> calls in these two methods were not wrapped in try/catch (unlike <code>CreateAsync</code>). When RabbitMQ is offline, both methods now catch and log the error instead of propagating a 500 to the client.</li>
+    <li><strong>Bug fix — seed user passwords:</strong> <code>DbSeeder.UpsertUser()</code> previously skipped overwriting the hash if a BCrypt hash already existed (even if it was a placeholder for an unknown password). The condition now always overwrites, ensuring seed credentials (<code>Admin@123</code>, <code>Agent@123</code>, <code>Customer@123</code>) are always valid after startup.</li>
+    <li><strong>New launcher script:</strong> <code>Launch-CustomerSupport.ps1</code> — single Admin PowerShell script that installs Erlang/RabbitMQ if missing, builds the solution, runs npm install, launches all 6 service windows, and opens the browser.</li>
+  </ul>
+</div>
+
+<div class="doc-footer">Made with IBM Bob</div>
+</div>
+</body>
+</html>

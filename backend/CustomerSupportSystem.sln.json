@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "defaultProvider": "dotnet",
+  "projects": [
+    "backend/UserService/UserService.csproj",
+    "backend/TicketService/TicketService.csproj",
+    "backend/ResponseService/ResponseService.csproj",
+    "backend/NotificationService/NotificationService.csproj",
+    "backend/Gateway/Gateway.csproj"
+  ]
+}

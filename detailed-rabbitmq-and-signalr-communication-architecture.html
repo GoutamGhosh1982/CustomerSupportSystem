@@ -1,0 +1,523 @@
+
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Detailed RabbitMQ and SignalR Communication Architecture</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 32px 20px;
+      background: #ffffff;
+      color: #1f2328;
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .page {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 {
+      margin: 0 0 12px;
+      line-height: 1.25;
+      font-weight: 600;
+    }
+    h1 {
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 19px;
+      margin-top: 30px;
+      padding-top: 18px;
+      border-top: 1px solid #e5e7eb;
+    }
+    h3 {
+      font-size: 15px;
+      margin-top: 20px;
+    }
+    p {
+      margin: 8px 0;
+    }
+    .lede {
+      color: #57606a;
+      margin-bottom: 16px;
+    }
+    .surface {
+      background: #f7f8fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 16px;
+      margin: 14px 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .card {
+      background: #f7f8fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .kicker {
+      color: #57606a;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+    .accent {
+      color: #3b82d4;
+      font-weight: 600;
+    }
+    .secondary {
+      color: #7c5cd8;
+      font-weight: 600;
+    }
+    ul, ol {
+      margin: 8px 0 8px 20px;
+      padding: 0;
+    }
+    li {
+      margin: 4px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 10px 8px;
+      border: 1px solid #e5e7eb;
+    }
+    th {
+      background: #f7f8fa;
+      font-weight: 600;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 13px;
+      background: #f7f8fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 1px 6px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border: 1px solid #e5e7eb;
+      border-radius: 999px;
+      background: #f7f8fa;
+      font-size: 12px;
+      color: #57606a;
+      margin: 3px 6px 0 0;
+    }
+    .muted {
+      color: #57606a;
+    }
+    .small {
+      font-size: 13px;
+    }
+    .diagram-wrap {
+      margin-top: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 10px;
+      background: #ffffff;
+    }
+    .footer {
+      margin-top: 28px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      font-size: 12px;
+      color: #57606a;
+    }
+    @media (max-width: 700px) {
+      .grid, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+    svg text {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      fill: #1f2328;
+      font-size: 12px;
+    }
+    .svg-muted {
+      fill: #57606a;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Detailed RabbitMQ and SignalR Communication Architecture</h1>
+    <p class="lede">This document describes how the Customer Support System microservices communicate through RabbitMQ and SignalR, how messages flow between producers and consumers, what each event contains, and how asynchronous backend events are delivered to users through email and real-time updates.</p>
+
+    <div class="surface">
+      <div class="kicker">Executive summary</div>
+      <p>The system uses <span class="accent">HTTP through the Gateway</span> for request-response operations, <span class="secondary">RabbitMQ</span> for asynchronous service-to-service event propagation, and <span class="accent">SignalR</span> for real-time browser updates. TicketService and ResponseService publish integration events. NotificationService consumes those events, logs them, sends email where applicable, and broadcasts live updates to frontend clients through SignalR hubs.</p>
+      <div>
+        <span class="pill">Exchange: support.events</span>
+        <span class="pill">SignalR hub: /hubs/notifications</span>
+        <span class="pill">Queues: notif.*</span>
+        <span class="pill">Topic routing</span>
+        <span class="pill">Real-time push</span>
+      </div>
+    </div>
+
+    <h2>1. Services participating in communication</h2>
+    <div class="grid">
+      <div class="card"><div class="kicker">Gateway</div><p>Public entry point for API and hub traffic. Routes HTTP calls and the notifications hub connection.</p></div>
+      <div class="card"><div class="kicker">UserService</div><p>Supports authentication and users. It is not directly participating in the RabbitMQ event chain documented here.</p></div>
+      <div class="card"><div class="kicker">TicketService</div><p>Stores ticket data and publishes ticket lifecycle events after create, update, and assignment operations.</p></div>
+      <div class="card"><div class="kicker">ResponseService</div><p>Stores ticket responses and attachments, then publishes response-related events.</p></div>
+      <div class="card"><div class="kicker">NotificationService</div><p>Consumes events from RabbitMQ, persists notification logs, sends emails, and broadcasts real-time SignalR events.</p></div>
+      <div class="card"><div class="kicker">SharedKernel</div><p>Provides event contracts, RabbitMQ settings, publisher abstractions, and connection helpers shared across services.</p></div>
+    </div>
+
+    <h2>2. Communication model</h2>
+    <div class="surface">
+      <h3>Synchronous path</h3>
+      <p>Frontend calls enter through the Gateway and are routed to domain services such as TicketService and ResponseService.</p>
+      <h3>Asynchronous path</h3>
+      <p>After data is persisted, producer services publish events to RabbitMQ. NotificationService consumes those events and performs notification side effects independently of the originating HTTP request.</p>
+      <h3>Real-time path</h3>
+      <p>NotificationService exposes a SignalR hub and broadcasts selected event results to live frontend connections. This is how agents and ticket viewers receive instant UI updates without polling.</p>
+    </div>
+
+    <h2>3. Clean architecture diagram</h2>
+    <div class="surface">
+      <svg width="100%" aria-label="Detailed RabbitMQ and SignalR communication diagram" role="img">
+        <defs>
+          <marker id="arrow">
+            <path d="M0,0 L10,3 L0,6 Z" fill="#57606a"></path>
+          </marker>
+        </defs>
+
+        <rect x="268" y="18" width="184" height="56" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+        <text x="360" y="41" text-anchor="middle" font-weight="600">Frontend Client</text>
+        <text x="360" y="59" text-anchor="middle" class="svg-muted">React application</text>
+
+        <rect x="268" y="100" width="184" height="60" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+        <text x="360" y="125" text-anchor="middle" font-weight="600">Gateway</text>
+        <text x="360" y="143" text-anchor="middle" class="svg-muted">HTTP routes and hub proxy</text>
+
+        <rect x="52" y="210" width="200" height="82" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+        <text x="152" y="236" text-anchor="middle" font-weight="600">TicketService</text>
+        <text x="152" y="254" text-anchor="middle" class="svg-muted">Ticket DB write</text>
+        <text x="152" y="270" text-anchor="middle" class="svg-muted">Publishes ticket lifecycle events</text>
+
+        <rect x="468" y="210" width="200" height="82" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+        <text x="568" y="236" text-anchor="middle" font-weight="600">ResponseService</text>
+        <text x="568" y="254" text-anchor="middle" class="svg-muted">Response DB write</text>
+        <text x="568" y="270" text-anchor="middle" class="svg-muted">Publishes response events</text>
+
+        <rect x="226" y="330" width="268" height="92" rx="8" fill="#f7f8fa" stroke="#3b82d4"></rect>
+        <text x="360" y="357" text-anchor="middle" font-weight="600">RabbitMQ Broker</text>
+        <text x="360" y="376" text-anchor="middle">Exchange: support.events</text>
+        <text x="360" y="394" text-anchor="middle" class="svg-muted">Topic exchange, durable queues, JSON messages</text>
+        <text x="360" y="410" text-anchor="middle" class="svg-muted">Routes to notif.ticket.* and notif.response.added</text>
+
+        <rect x="240" y="454" width="240" height="74" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+        <text x="360" y="480" text-anchor="middle" font-weight="600">NotificationService</text>
+        <text x="360" y="498" text-anchor="middle" class="svg-muted">Consumes, logs, emails, SignalR broadcasting</text>
+
+        <rect x="22" y="454" width="168" height="74" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+        <text x="106" y="480" text-anchor="middle" font-weight="600">SMTP Provider</text>
+        <text x="106" y="498" text-anchor="middle" class="svg-muted">Customer and agent emails</text>
+
+        <rect x="530" y="454" width="168" height="74" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+        <text x="614" y="480" text-anchor="middle" font-weight="600">SignalR Hub</text>
+        <text x="614" y="498" text-anchor="middle" class="svg-muted">/hubs/notifications</text>
+
+        <rect x="530" y="548" width="168" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+        <text x="614" y="573" text-anchor="middle" font-weight="600">Connected Clients</text>
+
+        <line x1="360" y1="74" x2="360" y2="100" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="372" y="90" class="svg-muted">HTTP / WebSocket</text>
+
+        <line x1="322" y1="160" x2="198" y2="210" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="216" y="174" class="svg-muted">/api/tickets</text>
+
+        <line x1="398" y1="160" x2="522" y2="210" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="454" y="174" class="svg-muted">/api/responses</text>
+
+        <line x1="400" y1="130" x2="570" y2="454" stroke="#57606a" stroke-width="1.2" marker-end="url(#arrow)"></line>
+        <text x="512" y="298" class="svg-muted">/hubs/notifications</text>
+
+        <line x1="192" y1="292" x2="302" y2="330" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="160" y="312" class="svg-muted">ticket.created</text>
+        <text x="160" y="327" class="svg-muted">ticket.updated</text>
+        <text x="160" y="342" class="svg-muted">ticket.assigned</text>
+
+        <line x1="528" y1="292" x2="418" y2="330" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="490" y="314" class="svg-muted">response.added</text>
+
+        <line x1="360" y1="422" x2="360" y2="454" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="372" y="440" class="svg-muted">notif.* queues</text>
+
+        <line x1="240" y1="491" x2="190" y2="491" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="196" y="478" class="svg-muted">email delivery</text>
+
+        <line x1="480" y1="491" x2="530" y2="491" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="488" y="478" class="svg-muted">broadcast</text>
+
+        <line x1="614" y1="528" x2="614" y2="548" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="626" y="542" class="svg-muted">live updates</text>
+      </svg>
+    </div>
+
+    <h2>4. RabbitMQ topology</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Name</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Exchange</td><td><code>support.events</code></td><td>Topic exchange used for integration events emitted by producer services.</td></tr>
+        <tr><td>Queue</td><td><code>notif.ticket.created</code></td><td>Receives ticket creation notifications.</td></tr>
+        <tr><td>Queue</td><td><code>notif.ticket.updated</code></td><td>Receives ticket status change events.</td></tr>
+        <tr><td>Queue</td><td><code>notif.ticket.assigned</code></td><td>Receives assignment events.</td></tr>
+        <tr><td>Queue</td><td><code>notif.response.added</code></td><td>Receives response creation events.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>5. SignalR component</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="kicker">Hub endpoint</div>
+        <p>NotificationService exposes the SignalR hub at <code>/hubs/notifications</code>. The Gateway forwards hub traffic to NotificationService.</p>
+      </div>
+      <div class="card">
+        <div class="kicker">Broadcast groups</div>
+        <p>Live events are broadcast to named groups including <code>agents</code> and ticket-scoped groups such as <code>ticket-{TicketId}</code>.</p>
+      </div>
+    </div>
+    <div class="surface">
+      <ul>
+        <li><strong>TicketCreated</strong> is broadcast to the <code>agents</code> group.</li>
+        <li><strong>TicketAssigned</strong> is broadcast to the <code>agents</code> group.</li>
+        <li><strong>TicketUpdated</strong> is broadcast to a ticket-specific group.</li>
+        <li><strong>ResponseAdded</strong> is broadcast to a ticket-specific group.</li>
+      </ul>
+    </div>
+
+    <h2>6. Producers and published events</h2>
+    <div class="grid-3">
+      <div class="card"><div class="kicker">Ticket creation</div><p><strong>Routing key:</strong> <code>ticket.created</code></p><p>Contains ticket identity, title, priority, category, customer information, and timestamp.</p></div>
+      <div class="card"><div class="kicker">Ticket update</div><p><strong>Routing key:</strong> <code>ticket.updated</code></p><p>Contains old and new status, updater information, note, and timestamp.</p></div>
+      <div class="card"><div class="kicker">Ticket assignment</div><p><strong>Routing key:</strong> <code>ticket.assigned</code></p><p>Contains agent and customer details with assignment timestamp.</p></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="kicker">Response creation</div>
+      <p><strong>Routing key:</strong> <code>response.added</code></p>
+      <p>Contains response id, ticket id, author information, message body, internal flag, and creation timestamp. The current publisher leaves <code>TicketNumber</code> empty.</p>
+    </div>
+
+    <h2>7. End-to-end data flows</h2>
+
+    <h3>Flow A: Ticket created</h3>
+    <div class="surface">
+      <ol>
+        <li>Frontend submits a ticket through the Gateway.</li>
+        <li>TicketService saves the ticket and publishes <code>ticket.created</code>.</li>
+        <li>RabbitMQ routes the event to <code>notif.ticket.created</code>.</li>
+        <li>NotificationService consumes it, emails the customer, stores a notification log, and sends a SignalR <code>TicketCreated</code> update to the <code>agents</code> group.</li>
+      </ol>
+      <div class="diagram-wrap">
+        <svg width="100%" aria-label="Ticket created end-to-end flow diagram" role="img">
+          <defs>
+            <marker id="arrow-flow-a">
+              <path d="M0,0 L10,3 L0,6 Z" fill="#57606a"></path>
+            </marker>
+          </defs>
+          <rect x="10" y="28" width="92" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="124" y="28" width="92" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="238" y="28" width="108" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="368" y="28" width="102" height="42" rx="8" fill="#f7f8fa" stroke="#3b82d4"></rect>
+          <rect x="492" y="28" width="114" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="628" y="8" width="82" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="628" y="66" width="82" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="628" y="124" width="82" height="34" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <text x="56" y="54" text-anchor="middle" font-weight="600">Frontend</text>
+          <text x="170" y="54" text-anchor="middle" font-weight="600">Gateway</text>
+          <text x="292" y="54" text-anchor="middle" font-weight="600">TicketService</text>
+          <text x="419" y="54" text-anchor="middle" font-weight="600">RabbitMQ</text>
+          <text x="549" y="54" text-anchor="middle" font-weight="600">NotificationSvc</text>
+          <text x="669" y="34" text-anchor="middle" font-weight="600">Email</text>
+          <text x="669" y="92" text-anchor="middle" font-weight="600">SignalR</text>
+          <text x="669" y="146" text-anchor="middle" font-weight="600">Log DB</text>
+          <line x1="102" y1="49" x2="124" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-a)"></line>
+          <line x1="216" y1="49" x2="238" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-a)"></line>
+          <line x1="346" y1="49" x2="368" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-a)"></line>
+          <line x1="470" y1="49" x2="492" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-a)"></line>
+          <line x1="606" y1="36" x2="628" y2="29" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-a)"></line>
+          <line x1="606" y1="49" x2="628" y2="87" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-a)"></line>
+          <line x1="606" y1="61" x2="628" y2="136" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-a)"></line>
+          <text x="356" y="21" class="svg-muted">ticket.created</text>
+          <text x="628" y="116" class="svg-muted">TicketCreated to agents</text>
+        </svg>
+      </div>
+    </div>
+
+    <h3>Flow B: Ticket updated</h3>
+    <div class="surface">
+      <ol>
+        <li>Frontend updates ticket status through the Gateway.</li>
+        <li>TicketService persists the new status and publishes <code>ticket.updated</code>.</li>
+        <li>RabbitMQ routes the event to <code>notif.ticket.updated</code>.</li>
+        <li>NotificationService records an in-app notification and sends a SignalR <code>TicketUpdated</code> event to the relevant ticket group.</li>
+      </ol>
+      <div class="diagram-wrap">
+        <svg width="100%" aria-label="Ticket updated end-to-end flow diagram" role="img">
+          <defs>
+            <marker id="arrow-flow-b">
+              <path d="M0,0 L10,3 L0,6 Z" fill="#57606a"></path>
+            </marker>
+          </defs>
+          <rect x="10" y="28" width="92" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="124" y="28" width="92" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="238" y="28" width="108" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="368" y="28" width="102" height="42" rx="8" fill="#f7f8fa" stroke="#3b82d4"></rect>
+          <rect x="492" y="28" width="114" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="628" y="12" width="82" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="628" y="84" width="82" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <text x="56" y="54" text-anchor="middle" font-weight="600">Frontend</text>
+          <text x="170" y="54" text-anchor="middle" font-weight="600">Gateway</text>
+          <text x="292" y="54" text-anchor="middle" font-weight="600">TicketService</text>
+          <text x="419" y="54" text-anchor="middle" font-weight="600">RabbitMQ</text>
+          <text x="549" y="54" text-anchor="middle" font-weight="600">NotificationSvc</text>
+          <text x="669" y="38" text-anchor="middle" font-weight="600">SignalR</text>
+          <text x="669" y="110" text-anchor="middle" font-weight="600">Log DB</text>
+          <line x1="102" y1="49" x2="124" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-b)"></line>
+          <line x1="216" y1="49" x2="238" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-b)"></line>
+          <line x1="346" y1="49" x2="368" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-b)"></line>
+          <line x1="470" y1="49" x2="492" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-b)"></line>
+          <line x1="606" y1="42" x2="628" y2="33" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-b)"></line>
+          <line x1="606" y1="58" x2="628" y2="105" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-b)"></line>
+          <text x="357" y="21" class="svg-muted">ticket.updated</text>
+          <text x="602" y="23" class="svg-muted">TicketUpdated to ticket-{id}</text>
+        </svg>
+      </div>
+    </div>
+
+    <h3>Flow C: Ticket assigned</h3>
+    <div class="surface">
+      <ol>
+        <li>Frontend submits assignment through the Gateway.</li>
+        <li>TicketService updates assignment data and publishes <code>ticket.assigned</code>.</li>
+        <li>RabbitMQ routes the event to <code>notif.ticket.assigned</code>.</li>
+        <li>NotificationService emails the assigned agent, stores a log entry, and broadcasts SignalR <code>TicketAssigned</code> to the <code>agents</code> group.</li>
+      </ol>
+      <div class="diagram-wrap">
+        <svg width="100%" aria-label="Ticket assigned end-to-end flow diagram" role="img">
+          <defs>
+            <marker id="arrow-flow-c">
+              <path d="M0,0 L10,3 L0,6 Z" fill="#57606a"></path>
+            </marker>
+          </defs>
+          <rect x="10" y="28" width="92" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="124" y="28" width="92" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="238" y="28" width="108" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="368" y="28" width="102" height="42" rx="8" fill="#f7f8fa" stroke="#3b82d4"></rect>
+          <rect x="492" y="28" width="114" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="628" y="8" width="82" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="628" y="66" width="82" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="628" y="124" width="82" height="34" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <text x="56" y="54" text-anchor="middle" font-weight="600">Frontend</text>
+          <text x="170" y="54" text-anchor="middle" font-weight="600">Gateway</text>
+          <text x="292" y="54" text-anchor="middle" font-weight="600">TicketService</text>
+          <text x="419" y="54" text-anchor="middle" font-weight="600">RabbitMQ</text>
+          <text x="549" y="54" text-anchor="middle" font-weight="600">NotificationSvc</text>
+          <text x="669" y="34" text-anchor="middle" font-weight="600">Email</text>
+          <text x="669" y="92" text-anchor="middle" font-weight="600">SignalR</text>
+          <text x="669" y="146" text-anchor="middle" font-weight="600">Log DB</text>
+          <line x1="102" y1="49" x2="124" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-c)"></line>
+          <line x1="216" y1="49" x2="238" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-c)"></line>
+          <line x1="346" y1="49" x2="368" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-c)"></line>
+          <line x1="470" y1="49" x2="492" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-c)"></line>
+          <line x1="606" y1="36" x2="628" y2="29" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-c)"></line>
+          <line x1="606" y1="49" x2="628" y2="87" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-c)"></line>
+          <line x1="606" y1="61" x2="628" y2="136" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-c)"></line>
+          <text x="354" y="21" class="svg-muted">ticket.assigned</text>
+          <text x="624" y="116" class="svg-muted">TicketAssigned to agents</text>
+        </svg>
+      </div>
+    </div>
+
+    <h3>Flow D: Response added</h3>
+    <div class="surface">
+      <ol>
+        <li>Frontend submits a response through the Gateway.</li>
+        <li>ResponseService stores the response and publishes <code>response.added</code>.</li>
+        <li>RabbitMQ routes the event to <code>notif.response.added</code>.</li>
+        <li>NotificationService logs the event and broadcasts SignalR <code>ResponseAdded</code> to the relevant ticket group.</li>
+      </ol>
+      <div class="diagram-wrap">
+        <svg width="100%" aria-label="Response added end-to-end flow diagram" role="img">
+          <defs>
+            <marker id="arrow-flow-d">
+              <path d="M0,0 L10,3 L0,6 Z" fill="#57606a"></path>
+            </marker>
+          </defs>
+          <rect x="10" y="28" width="92" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="124" y="28" width="92" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="238" y="28" width="122" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="382" y="28" width="102" height="42" rx="8" fill="#f7f8fa" stroke="#3b82d4"></rect>
+          <rect x="506" y="28" width="108" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="636" y="12" width="74" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <rect x="636" y="84" width="74" height="42" rx="8" fill="#f7f8fa" stroke="#e5e7eb"></rect>
+          <text x="56" y="54" text-anchor="middle" font-weight="600">Frontend</text>
+          <text x="170" y="54" text-anchor="middle" font-weight="600">Gateway</text>
+          <text x="299" y="54" text-anchor="middle" font-weight="600">ResponseService</text>
+          <text x="433" y="54" text-anchor="middle" font-weight="600">RabbitMQ</text>
+          <text x="560" y="54" text-anchor="middle" font-weight="600">NotificationSvc</text>
+          <text x="673" y="38" text-anchor="middle" font-weight="600">SignalR</text>
+          <text x="673" y="110" text-anchor="middle" font-weight="600">Log DB</text>
+          <line x1="102" y1="49" x2="124" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-d)"></line>
+          <line x1="216" y1="49" x2="238" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-d)"></line>
+          <line x1="360" y1="49" x2="382" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-d)"></line>
+          <line x1="484" y1="49" x2="506" y2="49" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-d)"></line>
+          <line x1="614" y1="42" x2="636" y2="33" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-d)"></line>
+          <line x1="614" y1="58" x2="636" y2="105" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow-flow-d)"></line>
+          <text x="395" y="21" class="svg-muted">response.added</text>
+          <text x="604" y="23" class="svg-muted">ResponseAdded to ticket-{id}</text>
+        </svg>
+      </div>
+    </div>
+
+    <h2>8. Delivery, acknowledgement, and failure behavior</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="kicker">Publisher behavior</div>
+        <p>TicketService and ResponseService use a fallback strategy. If RabbitMQ is unavailable when the service starts, they can continue business operations using a no-op publisher.</p>
+      </div>
+      <div class="card">
+        <div class="kicker">Consumer behavior</div>
+        <p>NotificationService uses manual ack and nack handling. Failures are negatively acknowledged without requeue, so retries are not automatic in the current setup.</p>
+      </div>
+    </div>
+
+    <h2>9. Final assessment</h2>
+    <div class="surface">
+      <p>This architecture combines synchronous API routing, asynchronous event-driven messaging, and real-time SignalR broadcasting in a way that fits a customer support platform well. RabbitMQ decouples notification work from transactional ticket and response operations, while SignalR ensures that agents and customers can see changes immediately in the UI.</p>
+      <p>The strongest next-step improvements would be dead-letter queue support, retry strategy, and stronger atomicity guarantees between database writes and event publication.</p>
+    </div>
+
+    <div class="footer">Made with IBM Bob</div>
+  </div>
+</body>
+</html>
